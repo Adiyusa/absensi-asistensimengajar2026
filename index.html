@@ -3,162 +3,290 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Portal Presensi SMPN 6 Singaraja</title>
+  <title>Absensi Asistensi Mengajar 2026- SMPN 6 Singaraja</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-50 min-h-screen flex items-center justify-center p-4">
+<body class="bg-slate-100 min-h-screen flex items-center justify-center p-4 antialiased selection:bg-blue-500 selection:text-white">
 
-  <div class="w-full max-w-sm bg-white rounded-3xl shadow-sm border border-slate-200 p-5 space-y-4">
-    <!-- Header -->
-    <div class="flex items-center justify-between">
-      <div class="flex items-center space-x-2">
-        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white text-xs font-bold">SMP</div>
+  <!-- Container Utama -->
+  <main class="w-full max-w-sm bg-white rounded-3xl shadow-lg border border-slate-200/80 p-6 space-y-5">
+    
+    <!-- Header & Live Clock -->
+    <header class="flex items-center justify-between border-b border-slate-100 pb-4">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-sm">
+          AM
+        </div>
         <div>
-          <h1 class="text-sm font-bold text-slate-800">SMPN 6 SINGARAJA</h1>
-          <p class="text-[11px] text-slate-500">Presensi Asistensi Mengajar</p>
+          <h1 class="text-xs font-black tracking-wider text-slate-900 uppercase">SMPN 6 Singaraja</h1>
+          <p class="text-[11px] text-slate-500 font-medium">Asistensi Mengajar</p>
         </div>
       </div>
-      <span class="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full border border-slate-200" id="live-clock">
-        --:-- WITA
-      </span>
-    </div>
+      <div class="text-right">
+        <span id="live-clock" class="text-[11px] font-mono font-bold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full border border-blue-100">
+          --:--:-- WITA
+        </span>
+      </div>
+    </header>
 
-    <!-- Status Card Box -->
-    <div id="status-card" class="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
+    <!-- Kartu Status Verifikasi -->
+    <section id="status-card" class="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 space-y-2 transition-all duration-300">
       <div class="flex items-center space-x-2">
-        <span id="status-icon" class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping"></span>
-        <h2 id="status-title" class="text-xs font-bold text-amber-900">Memeriksa Lokasi GPS...</h2>
+        <span id="status-indicator" class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+        <h2 id="status-title" class="text-xs font-bold text-amber-900">Mendeteksi Lokasi GPS...</h2>
       </div>
       <p id="status-desc" class="text-[11px] text-amber-700 leading-relaxed">
-        Mohon izinkan akses lokasi (GPS) pada browser ponsel Anda untuk memvalidasi keberadaan di sekolah.
+        Harap izinkan akses lokasi di browser untuk memverifikasi radius SMP Negeri 6 Singaraja.
       </p>
+    </section>
+
+    <!-- Rincian Parameter Jarak -->
+    <section class="bg-slate-50 border border-slate-100 p-3.5 rounded-2xl space-y-2 text-xs">
+      <div class="flex justify-between items-center text-slate-500">
+        <span>Batas Radius Resmi:</span>
+        <span class="font-semibold text-slate-700">150 Meter</span>
+      </div>
+      <div class="flex justify-between items-center text-slate-500">
+        <span>Jarak Anda Terdeteksi:</span>
+        <span id="distance-text" class="font-mono font-bold text-slate-900">Mengukur...</span>
+      </div>
+      <div class="flex justify-between items-center text-slate-500">
+        <span>Sesi Aktif:</span>
+        <span id="active-session-text" class="font-medium text-slate-700">-</span>
+      </div>
+    </section>
+
+    <!-- Tombol Aksi Utama -->
+    <div class="space-y-2 pt-1">
+      <button 
+        id="btn-action" 
+        disabled 
+        class="w-full py-3.5 bg-slate-200 text-slate-400 font-bold rounded-2xl text-xs tracking-wide uppercase transition-all duration-200 cursor-not-allowed shadow-none">
+        Presensi Terkunci
+      </button>
+
+      <button 
+        type="button" 
+        onclick="checkAttendanceAccess()" 
+        class="w-full py-2 text-center text-xs text-blue-600 hover:text-blue-800 font-semibold transition flex items-center justify-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        </svg>
+        Perbarui Koordinat GPS
+      </button>
     </div>
 
-    <!-- Info Radius -->
-    <div class="bg-slate-100 p-3 rounded-xl flex items-center justify-between text-xs text-slate-600">
-      <span>Jarak Terdeteksi:</span>
-      <span id="distance-text" class="font-bold text-slate-800">-</span>
+  </main>
+
+  <!-- Modal Token Akses -->
+  <div id="token-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden z-50">
+    <div class="bg-white w-full max-w-xs rounded-3xl p-5 text-center shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in duration-200">
+      <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl font-bold">
+        ✓
+      </div>
+      <div>
+        <h3 class="text-sm font-bold text-slate-900">Presensi Terverifikasi</h3>
+        <p class="text-[11px] text-slate-500 mt-1">Salin kode di bawah ini lalu tempel pada kolom <b>Kode Sesi</b> di Google Form.</p>
+      </div>
+      
+      <div class="bg-slate-50 border border-dashed border-slate-300 rounded-2xl p-3">
+        <span class="text-[10px] text-slate-400 font-semibold block uppercase tracking-wider">Token Sesi Valid</span>
+        <span id="modal-token-display" class="text-lg font-mono font-bold tracking-widest text-blue-600">------</span>
+      </div>
+
+      <button 
+        type="button" 
+        onclick="copyAndProceed()" 
+        class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs tracking-wide shadow-md transition flex items-center justify-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+        </svg>
+        Salin Kode & Buka Form
+      </button>
     </div>
-
-    <!-- CTA Button menuju Google Form -->
-    <a id="btn-portal" href="#" target="_blank" class="block text-center w-full py-3 bg-slate-200 text-slate-400 font-semibold rounded-xl text-sm pointer-events-none transition duration-200">
-      Buka Formulir Presensi
-    </a>
-
-    <button onclick="checkLocation()" class="w-full text-center text-xs text-blue-600 font-medium py-1">
-      🔄 Perbarui Koordinat GPS
-    </button>
   </div>
 
   <script>
-    // 1. Konfigurasi Titik Target (SMP Negeri 6 Singaraja)
-    const TARGET_LAT = -8.1228095;  // Sesuaikan titik pasti gerbang sekolah
+    // ==========================================
+    // 1. KONFIGURASI SISTEM
+    // ==========================================
+    // Koordinat Resmi SMP Negeri 6 Singaraja
+    const TARGET_LAT = -8.1228095;
     const TARGET_LNG = 115.0914546;
-    const MAX_RADIUS_METER = 120; 
-    const GOOGLE_FORM_URL = "https://forms.gle/Y9o6KnZeUvzMGuQU6";
+    const MAX_RADIUS_METER = 150;
 
-    // 2. Rumus Haversine untuk kalkulasi jarak (meter)
-    function getDistanceInMeters(lat1, lon1, lat2, lon2) {
-      const R = 6371e3;
-      const toRad = (x) => (x * Math.PI) / 180;
+    // Ganti tautan di bawah dengan link respon publik Google Form Anda
+    const GOOGLE_FORM_URL = "https://forms.gle/KWzuDYPRDH7xvGtS7";
+
+    // Token Rahasia (Wajib SAMA PERSIS dengan konfigurasi Data Validation Google Form)
+    const TOKEN_PAGI  = "SPN6-PAGI-2026";
+    const TOKEN_SIANG = "SPN6-SIANG-2026";
+
+    let generatedToken = "";
+
+    // ==========================================
+    // 2. FORMULA HAVERSINE (KALKULASI JARAK GPS)
+    // ==========================================
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371e3; // Radius bumi dalam meter
+      const toRad = deg => (deg * Math.PI) / 180;
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
+
       const a = Math.sin(dLat / 2) ** 2 +
                 Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
                 Math.sin(dLon / 2) ** 2;
-      return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
-    // 3. Validasi Waktu Sesi (WITA)
-    function isWithinTimeWindow() {
+    // ==========================================
+    // 3. PENGECEKAN SESI WAKTU (WITA / UTC+8)
+    // ==========================================
+    function checkCurrentSession() {
       const now = new Date();
-      // Konversi ke jam lokal WITA (UTC+8)
+      // Konversi waktu sekarang ke total menit WITA
       const witaHours = (now.getUTCHours() + 8) % 24;
       const witaMinutes = now.getUTCMinutes();
-      const currentTime = witaHours * 60 + witaMinutes;
+      const currentMinute = witaHours * 60 + witaMinutes;
 
-      // Rentang Sesi (dalam menit):
-      // Sesi Pagi: 06:45 (405) - 08:00 (480)
-      // Sesi Siang: 12:30 (750) - 14:00 (840)
-      const morningValid = (currentTime >= 405 && currentTime <= 480);
-      const noonValid = (currentTime >= 750 && currentTime <= 840);
-
-      return (morningValid || noonValid);
+      // Rentang Menit:
+      // Sesi Pagi:  06:45 (405) s.d 08:00 (480)
+      // Sesi Siang: 12:30 (750) s.d 14:00 (840)
+      if (currentMinute >= 405 && currentMinute <= 480) {
+        return { valid: true, name: "Pagi (06:45 - 08:00 WITA)", token: TOKEN_PAGI };
+      } else if (currentMinute >= 750 && currentMinute <= 840) {
+        return { valid: true, name: "Siang (12:30 - 14:00 WITA)", token: TOKEN_SIANG };
+      }
+      return { valid: false, name: "Di Luar Jam Operasional Presensi", token: null };
     }
 
-    // 4. Deteksi Lokasi
-    function checkLocation() {
+    // ==========================================
+    // 4. LOGIKA VALIDASI & UI STATE
+    // ==========================================
+    function checkAttendanceAccess() {
       const card = document.getElementById('status-card');
+      const indicator = document.getElementById('status-indicator');
       const title = document.getElementById('status-title');
       const desc = document.getElementById('status-desc');
       const distText = document.getElementById('distance-text');
-      const btn = document.getElementById('btn-portal');
+      const sessionText = document.getElementById('active-session-text');
+      const btn = document.getElementById('btn-action');
+
+      const session = checkCurrentSession();
+      sessionText.innerText = session.name;
 
       if (!navigator.geolocation) {
-        title.innerText = "GPS Tidak Didukung";
-        desc.innerText = "Gunakan peramban modern seperti Google Chrome di smartphone.";
+        setUIState("error", "GPS Tidak Didukung", "Browser ponsel ini tidak mendukung sensor Geolocation API.");
         return;
       }
 
+      setUIState("loading", "Mendeteksi Posisi Anda...", "Mengunci koordinat GPS perangkat...");
+
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const userLat = position.coords.latitude;
-          const userLng = position.coords.longitude;
-          const distance = Math.round(getDistanceInMeters(userLat, userLng, TARGET_LAT, TARGET_LNG));
-          
-          distText.innerText = `${distance} Meter (Maks. ${MAX_RADIUS_METER}m)`;
+        (pos) => {
+          const userLat = pos.coords.latitude;
+          const userLng = pos.coords.longitude;
+          const distance = Math.round(calculateDistance(userLat, userLng, TARGET_LAT, TARGET_LNG));
 
-          const timeValid = isWithinTimeWindow();
-          const locationValid = distance <= MAX_RADIUS_METER;
+          distText.innerText = `${distance} Meter`;
 
-          if (locationValid && timeValid) {
-            // Lolos Validasi
-            card.className = "p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2";
-            title.className = "text-xs font-bold text-emerald-900";
-            title.innerText = "Lokasi & Waktu Terverifikasi";
-            desc.className = "text-[11px] text-emerald-700 leading-relaxed";
-            desc.innerText = "Anda berada di dalam zona SMPN 6 Singaraja pada sesi presensi aktif.";
+          if (distance <= MAX_RADIUS_METER && session.valid) {
+            generatedToken = session.token;
+            setUIState("success", "Lokasi & Waktu Terverifikasi", "Anda berada di area SMP Negeri 6 Singaraja pada jam sesi aktif.");
             
-            btn.href = GOOGLE_FORM_URL;
-            btn.className = "block text-center w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-sm shadow-md transition";
-            btn.innerText = "Buka Formulir Presensi";
-          } else if (!locationValid) {
-            // Di luar jangkauan lokasi
-            card.className = "p-4 rounded-2xl bg-red-50 border border-red-200 space-y-2";
-            title.className = "text-xs font-bold text-red-900";
-            title.innerText = "Presensi Terkunci (Di Luar Jangkauan)";
-            desc.className = "text-[11px] text-red-700 leading-relaxed";
-            desc.innerText = `Posisi Anda terdeteksi ${distance} meter dari sekolah. Harap mendekat ke area SMPN 6 Singaraja.`;
-            
-            btn.className = "block text-center w-full py-3 bg-slate-200 text-slate-400 font-semibold rounded-xl text-sm pointer-events-none";
-            btn.innerText = "Di Luar Jangkauan";
-          } else if (!timeValid) {
-            // Di luar jadwal jam sesi
-            card.className = "p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-2";
-            title.className = "text-xs font-bold text-amber-900";
-            title.innerText = "Sesi Presensi Belum Dibuka / Selesai";
-            desc.className = "text-[11px] text-amber-700 leading-relaxed";
-            desc.innerText = "Presensi hanya dapat diakses pada jam sesi Pagi (06:45 - 08:00) atau Siang (12:30 - 14:00 WITA).";
-            
-            btn.className = "block text-center w-full py-3 bg-slate-200 text-slate-400 font-semibold rounded-xl text-sm pointer-events-none";
-            btn.innerText = "Waktu Sesi Berakhir";
+            btn.disabled = false;
+            btn.innerText = "Ambil Token & Buka Form";
+            btn.className = "w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs tracking-wide uppercase transition-all duration-200 shadow-md shadow-blue-200 cursor-pointer";
+            btn.onclick = openTokenModal;
+
+          } else if (distance > MAX_RADIUS_METER) {
+            setUIState("danger", "Di Luar Jangkauan Sekolah", `Posisi terdeteksi ${distance} meter dari sekolah. Anda harus berada dalam radius ${MAX_RADIUS_METER}m.`);
+            lockButton("Presensi Terkunci (Radius)");
+          } else if (!session.valid) {
+            setUIState("warning", "Sesi Tidak Aktif", "Presensi hanya dibuka pada sesi Pagi (06:45-08:00) dan Siang (12:30-14:00 WITA).");
+            lockButton("Presensi Terkunci (Jadwal)");
           }
         },
-        (error) => {
-          title.innerText = "Izin Lokasi Ditolak";
-          desc.innerText = "Silakan aktifkan GPS dan izinkan browser mengakses lokasi perangkat.";
+        (err) => {
+          distText.innerText = "Akses Ditolak";
+          setUIState("danger", "Izin GPS Dinonaktifkan", "Harap aktifkan GPS perangkat dan berikan izin akses lokasi pada peramban.");
+          lockButton("GPS Tidak Aktif");
         },
-        { enableHighAccuracy: true, timeout: 8000 }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     }
 
-    // Jalankan pengecekan saat web dimuat
+    function setUIState(type, titleText, descText) {
+      const card = document.getElementById('status-card');
+      const indicator = document.getElementById('status-indicator');
+      const title = document.getElementById('status-title');
+      const desc = document.getElementById('status-desc');
+
+      title.innerText = titleText;
+      desc.innerText = descText;
+
+      if (type === "success") {
+        card.className = "p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2 transition-all";
+        indicator.className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
+        title.className = "text-xs font-bold text-emerald-900";
+        desc.className = "text-[11px] text-emerald-700 leading-relaxed";
+      } else if (type === "danger") {
+        card.className = "p-4 rounded-2xl bg-rose-50 border border-rose-200 space-y-2 transition-all";
+        indicator.className = "w-2.5 h-2.5 rounded-full bg-rose-500";
+        title.className = "text-xs font-bold text-rose-900";
+        desc.className = "text-[11px] text-rose-700 leading-relaxed";
+      } else if (type === "warning") {
+        card.className = "p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-2 transition-all";
+        indicator.className = "w-2.5 h-2.5 rounded-full bg-amber-500";
+        title.className = "text-xs font-bold text-amber-900";
+        desc.className = "text-[11px] text-amber-700 leading-relaxed";
+      } else {
+        card.className = "p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 transition-all";
+        indicator.className = "w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping";
+        title.className = "text-xs font-bold text-slate-800";
+        desc.className = "text-[11px] text-slate-600 leading-relaxed";
+      }
+    }
+
+    function lockButton(label) {
+      const btn = document.getElementById('btn-action');
+      btn.disabled = true;
+      btn.onclick = null;
+      btn.innerText = label;
+      btn.className = "w-full py-3.5 bg-slate-200 text-slate-400 font-bold rounded-2xl text-xs tracking-wide uppercase transition-all duration-200 cursor-not-allowed shadow-none";
+    }
+
+    // ==========================================
+    // 5. MODAL & SALIN TOKEN
+    // ==========================================
+    function openTokenModal() {
+      document.getElementById('modal-token-display').innerText = generatedToken;
+      document.getElementById('token-modal').classList.remove('hidden');
+    }
+
+    function copyAndProceed() {
+      navigator.clipboard.writeText(generatedToken).then(() => {
+        alert("Kode Token Berhasil Disalin: " + generatedToken);
+        window.open(GOOGLE_FORM_URL, '_blank');
+      }).catch(() => {
+        window.open(GOOGLE_FORM_URL, '_blank');
+      });
+    }
+
+    // ==========================================
+    // 6. INISIALISASI
+    // ==========================================
     window.addEventListener('DOMContentLoaded', () => {
-      checkLocation();
-      // Update jam digital
+      checkAttendanceAccess();
+
+      // Update jam digital WITA (UTC+8) tiap detik
       setInterval(() => {
         const d = new Date();
-        document.getElementById('live-clock').innerText = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + " WITA";
+        const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+        const witaDate = new Date(utc + (3600000 * 8));
+        document.getElementById('live-clock').innerText = 
+          witaDate.toLocaleTimeString('id-ID', { hour12: false }) + " WITA";
       }, 1000);
     });
   </script>
