@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Absensi Asistensi Mengajar 2026- SMPN 6 Singaraja</title>
+  <title>Portal Presensi - SMPN 6 Singaraja</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-100 min-h-screen flex items-center justify-center p-4 antialiased selection:bg-blue-500 selection:text-white">
@@ -11,7 +11,7 @@
   <!-- Container Utama -->
   <main class="w-full max-w-sm bg-white rounded-3xl shadow-lg border border-slate-200/80 p-6 space-y-5">
     
-    <!-- Header & Live Clock -->
+    <!-- Header & Jam Digital WITA -->
     <header class="flex items-center justify-between border-b border-slate-100 pb-4">
       <div class="flex items-center space-x-3">
         <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-sm">
@@ -29,34 +29,34 @@
       </div>
     </header>
 
-    <!-- Kartu Status Verifikasi -->
+    <!-- Kartu Status Validasi -->
     <section id="status-card" class="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 space-y-2 transition-all duration-300">
       <div class="flex items-center space-x-2">
         <span id="status-indicator" class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
         <h2 id="status-title" class="text-xs font-bold text-amber-900">Mendeteksi Lokasi GPS...</h2>
       </div>
       <p id="status-desc" class="text-[11px] text-amber-700 leading-relaxed">
-        Harap izinkan akses lokasi di browser untuk memverifikasi radius SMP Negeri 6 Singaraja.
+        Harap izinkan akses sensor lokasi pada browser untuk memverifikasi radius sekolah.
       </p>
     </section>
 
-    <!-- Rincian Parameter Jarak -->
+    <!-- Rincian Parameter Jarak & Jadwal -->
     <section class="bg-slate-50 border border-slate-100 p-3.5 rounded-2xl space-y-2 text-xs">
       <div class="flex justify-between items-center text-slate-500">
         <span>Batas Radius Resmi:</span>
         <span class="font-semibold text-slate-700">150 Meter</span>
       </div>
       <div class="flex justify-between items-center text-slate-500">
-        <span>Jarak Anda Terdeteksi:</span>
+        <span>Jarak Terdeteksi:</span>
         <span id="distance-text" class="font-mono font-bold text-slate-900">Mengukur...</span>
       </div>
       <div class="flex justify-between items-center text-slate-500">
-        <span>Sesi Aktif:</span>
+        <span>Sesi Mengajar:</span>
         <span id="active-session-text" class="font-medium text-slate-700">-</span>
       </div>
     </section>
 
-    <!-- Tombol Aksi Utama -->
+    <!-- Tombol Tindakan -->
     <div class="space-y-2 pt-1">
       <button 
         id="btn-action" 
@@ -78,7 +78,7 @@
 
   </main>
 
-  <!-- Modal Token Akses -->
+  <!-- Modal Token Harian -->
   <div id="token-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden z-50">
     <div class="bg-white w-full max-w-xs rounded-3xl p-5 text-center shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in duration-200">
       <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl font-bold">
@@ -86,12 +86,12 @@
       </div>
       <div>
         <h3 class="text-sm font-bold text-slate-900">Presensi Terverifikasi</h3>
-        <p class="text-[11px] text-slate-500 mt-1">Salin kode di bawah ini lalu tempel pada kolom <b>Kode Sesi</b> di Google Form.</p>
+        <p class="text-[11px] text-slate-500 mt-1">Salin kode token di bawah ini lalu masukkan ke kolom <b>Kode Sesi</b> pada Google Form.</p>
       </div>
       
       <div class="bg-slate-50 border border-dashed border-slate-300 rounded-2xl p-3">
-        <span class="text-[10px] text-slate-400 font-semibold block uppercase tracking-wider">Token Sesi Valid</span>
-        <span id="modal-token-display" class="text-lg font-mono font-bold tracking-widest text-blue-600">------</span>
+        <span class="text-[10px] text-slate-400 font-semibold block uppercase tracking-wider">Token Sesi Hari Ini</span>
+        <span id="modal-token-display" class="text-xl font-mono font-bold tracking-widest text-blue-600">------</span>
       </div>
 
       <button 
@@ -108,27 +108,70 @@
 
   <script>
     // ==========================================
-    // 1. KONFIGURASI SISTEM
+    // 1. KONFIGURASI PARAMETER
     // ==========================================
-    // Koordinat Resmi SMP Negeri 6 Singaraja
     const TARGET_LAT = -8.1228095;
     const TARGET_LNG = 115.0914546;
     const MAX_RADIUS_METER = 150;
 
-    // Ganti tautan di bawah dengan link respon publik Google Form Anda
-    const GOOGLE_FORM_URL = "https://forms.gle/KWzuDYPRDH7xvGtS7";
+    // Ganti tautan berikut dengan Link Publik Google Form Anda
+    const GOOGLE_FORM_URL = "https://forms.gle/MJ5pq4L9rwEwrCY39";
 
-    // Token Rahasia (Wajib SAMA PERSIS dengan konfigurasi Data Validation Google Form)
-    const TOKEN_PAGI  = "SPN6-PAGI-2026";
-    const TOKEN_SIANG = "SPN6-SIANG-2026";
+    // Kunci Rahasia Generator (SAMA PERSIS dengan di Apps Script)
+    const SECRET_SALT = "SMPN6_SINGARAJA_SECRET_KEY_2026";
 
     let generatedToken = "";
 
     // ==========================================
-    // 2. FORMULA HAVERSINE (KALKULASI JARAK GPS)
+    // 2. GENERATOR TOKEN ACAK HARIAN (SHA-256)
+    // ==========================================
+    async function generateDailyToken(dateStr, sessionName) {
+      const rawInput = `${dateStr}-${sessionName}-${SECRET_SALT}`;
+      const msgUint8 = new TextEncoder().encode(rawInput);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hexString = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+      
+      // Ambil 6 karakter pertama sebagai token acak
+      return hexString.substring(0, 6);
+    }
+
+    // ==========================================
+    // 3. VALIDASI JADWAL SESI (WITA / UTC+8)
+    // ==========================================
+    async function checkCurrentSession() {
+      const now = new Date();
+      
+      // Ambil tanggal & jam sesuai zona waktu WITA (UTC+8)
+      const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+      const witaDate = new Date(utc + (3600000 * 8));
+
+      const yyyy = witaDate.getFullYear();
+      const mm = String(witaDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(witaDate.getDate()).padStart(2, '0');
+      const dateStr = `${yyyy}-${mm}-${dd}`;
+
+      const currentMinute = witaDate.getHours() * 60 + witaDate.getMinutes();
+
+      // Sesi Pagi: 06:45 (405) - 08:00 (480) WITA
+      if (currentMinute >= 405 && currentMinute <= 480) {
+        const token = await generateDailyToken(dateStr, "PAGI");
+        return { valid: true, name: "Pagi (06:45 - 08:00 WITA)", token: token };
+      } 
+      // Sesi Siang: 12:30 (750) - 14:00 (840) WITA
+      else if (currentMinute >= 750 && currentMinute <= 840) {
+        const token = await generateDailyToken(dateStr, "SIANG");
+        return { valid: true, name: "Siang (12:30 - 14:00 WITA)", token: token };
+      }
+
+      return { valid: false, name: "Di Luar Jam Operasional", token: null };
+    }
+
+    // ==========================================
+    // 4. PERHITUNGAN RADIUS GPS (HAVERSINE)
     // ==========================================
     function calculateDistance(lat1, lon1, lat2, lon2) {
-      const R = 6371e3; // Radius bumi dalam meter
+      const R = 6371e3;
       const toRad = deg => (deg * Math.PI) / 180;
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
@@ -141,48 +184,25 @@
     }
 
     // ==========================================
-    // 3. PENGECEKAN SESI WAKTU (WITA / UTC+8)
+    // 5. VALIDASI UTAMA & PEMBARUAN TAMPILAN
     // ==========================================
-    function checkCurrentSession() {
-      const now = new Date();
-      // Konversi waktu sekarang ke total menit WITA
-      const witaHours = (now.getUTCHours() + 8) % 24;
-      const witaMinutes = now.getUTCMinutes();
-      const currentMinute = witaHours * 60 + witaMinutes;
-
-      // Rentang Menit:
-      // Sesi Pagi:  06:45 (405) s.d 08:00 (480)
-      // Sesi Siang: 12:30 (750) s.d 14:00 (840)
-      if (currentMinute >= 405 && currentMinute <= 480) {
-        return { valid: true, name: "Pagi (06:45 - 08:00 WITA)", token: TOKEN_PAGI };
-      } else if (currentMinute >= 750 && currentMinute <= 840) {
-        return { valid: true, name: "Siang (12:30 - 14:00 WITA)", token: TOKEN_SIANG };
-      }
-      return { valid: false, name: "Di Luar Jam Operasional Presensi", token: null };
-    }
-
-    // ==========================================
-    // 4. LOGIKA VALIDASI & UI STATE
-    // ==========================================
-    function checkAttendanceAccess() {
-      const card = document.getElementById('status-card');
-      const indicator = document.getElementById('status-indicator');
-      const title = document.getElementById('status-title');
-      const desc = document.getElementById('status-desc');
-      const distText = document.getElementById('distance-text');
+    async function checkAttendanceAccess() {
       const sessionText = document.getElementById('active-session-text');
+      const distText = document.getElementById('distance-text');
       const btn = document.getElementById('btn-action');
 
-      const session = checkCurrentSession();
+      // 1. Validasi sesi dan token dinamis dengan await
+      const session = await checkCurrentSession();
       sessionText.innerText = session.name;
 
       if (!navigator.geolocation) {
-        setUIState("error", "GPS Tidak Didukung", "Browser ponsel ini tidak mendukung sensor Geolocation API.");
+        setUIState("error", "GPS Tidak Didukung", "Browser ponsel ini tidak mendukung sensor lokasi.");
         return;
       }
 
       setUIState("loading", "Mendeteksi Posisi Anda...", "Mengunci koordinat GPS perangkat...");
 
+      // 2. Baca koordinat perangkat
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const userLat = pos.coords.latitude;
@@ -193,7 +213,7 @@
 
           if (distance <= MAX_RADIUS_METER && session.valid) {
             generatedToken = session.token;
-            setUIState("success", "Lokasi & Waktu Terverifikasi", "Anda berada di area SMP Negeri 6 Singaraja pada jam sesi aktif.");
+            setUIState("success", "Lokasi & Waktu Terverifikasi", "Anda berada di zona sekolah pada sesi presensi aktif.");
             
             btn.disabled = false;
             btn.innerText = "Ambil Token & Buka Form";
@@ -210,7 +230,7 @@
         },
         (err) => {
           distText.innerText = "Akses Ditolak";
-          setUIState("danger", "Izin GPS Dinonaktifkan", "Harap aktifkan GPS perangkat dan berikan izin akses lokasi pada peramban.");
+          setUIState("danger", "Izin GPS Dinonaktifkan", "Harap aktifkan GPS ponsel dan berikan izin lokasi pada peramban.");
           lockButton("GPS Tidak Aktif");
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -258,7 +278,7 @@
     }
 
     // ==========================================
-    // 5. MODAL & SALIN TOKEN
+    // 6. POPUP MODAL & SALIN TOKEN
     // ==========================================
     function openTokenModal() {
       document.getElementById('modal-token-display').innerText = generatedToken;
@@ -267,7 +287,7 @@
 
     function copyAndProceed() {
       navigator.clipboard.writeText(generatedToken).then(() => {
-        alert("Kode Token Berhasil Disalin: " + generatedToken);
+        alert("Kode Token Berhasil Disalin: " + generatedToken + "\nSilakan tempel di kolom Kode Sesi Google Form!");
         window.open(GOOGLE_FORM_URL, '_blank');
       }).catch(() => {
         window.open(GOOGLE_FORM_URL, '_blank');
@@ -275,12 +295,12 @@
     }
 
     // ==========================================
-    // 6. INISIALISASI
+    // 7. INISIALISASI
     // ==========================================
     window.addEventListener('DOMContentLoaded', () => {
       checkAttendanceAccess();
 
-      // Update jam digital WITA (UTC+8) tiap detik
+      // Update jam digital WITA (UTC+8) secara real-time
       setInterval(() => {
         const d = new Date();
         const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
