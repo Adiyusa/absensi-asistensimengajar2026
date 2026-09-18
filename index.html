@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Portal Presensi - SMPN 6 Singaraja</title>
+  <title>Portal Absensi - SMPN 6 Singaraja</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-100 min-h-screen flex items-center justify-center p-4 antialiased selection:bg-blue-500 selection:text-white">
@@ -115,7 +115,7 @@
     const MAX_RADIUS_METER = 150;
 
     // Ganti tautan berikut dengan Link Publik Google Form Anda
-    const GOOGLE_FORM_URL = "https://forms.gle/MJ5pq4L9rwEwrCY39";
+    const GOOGLE_FORM_URL = "https://forms.gle/aqX7S2RtxEeezNMB9";
 
     // Kunci Rahasia Generator (SAMA PERSIS dengan di Apps Script)
     const SECRET_SALT = "SMPN6_SINGARAJA_SECRET_KEY_2026";
@@ -153,15 +153,15 @@
 
       const currentMinute = witaDate.getHours() * 60 + witaDate.getMinutes();
 
-      // Sesi Pagi: 06:45 (405) - 08:00 (480) WITA
-      if (currentMinute >= 405 && currentMinute <= 480) {
+      // Sesi Pagi: 06:00 (360) - 07:00 (420) WITA
+      if (currentMinute >= 360 && currentMinute <= 420) {
         const token = await generateDailyToken(dateStr, "PAGI");
-        return { valid: true, name: "Pagi (06:45 - 08:00 WITA)", token: token };
+        return { valid: true, name: "Pagi (06:00 - 07:00 WITA)", token: token };
       } 
-      // Sesi Siang: 12:30 (750) - 14:00 (840) WITA
-      else if (currentMinute >= 750 && currentMinute <= 840) {
+      // Sesi Siang: 11:00 (660) - 12:00 (720) WITA
+      else if (currentMinute >= 660 && currentMinute <= 720) {
         const token = await generateDailyToken(dateStr, "SIANG");
-        return { valid: true, name: "Siang (12:30 - 14:00 WITA)", token: token };
+        return { valid: true, name: "Siang (11:00 - 12:00 WITA)", token: token };
       }
 
       return { valid: false, name: "Di Luar Jam Operasional", token: null };
@@ -224,7 +224,7 @@
             setUIState("danger", "Di Luar Jangkauan Sekolah", `Posisi terdeteksi ${distance} meter dari sekolah. Anda harus berada dalam radius ${MAX_RADIUS_METER}m.`);
             lockButton("Presensi Terkunci (Radius)");
           } else if (!session.valid) {
-            setUIState("warning", "Sesi Tidak Aktif", "Presensi hanya dibuka pada sesi Pagi (06:45-08:00) dan Siang (12:30-14:00 WITA).");
+            setUIState("warning", "Sesi Tidak Aktif", "Presensi hanya dibuka pada sesi Pagi (06:00-07:00) dan Siang (11:00-12:00 WITA).");
             lockButton("Presensi Terkunci (Jadwal)");
           }
         },
