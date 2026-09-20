@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Portal Absensi - SMPN 6 Singaraja</title>
+  <title>Portal Presensi - SMPN 6 Singaraja</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-100 min-h-screen flex items-center justify-center p-4 antialiased selection:bg-blue-500 selection:text-white">
@@ -36,7 +36,7 @@
         <h2 id="status-title" class="text-xs font-bold text-amber-900">Mendeteksi Lokasi GPS...</h2>
       </div>
       <p id="status-desc" class="text-[11px] text-amber-700 leading-relaxed">
-        Harap izinkan akses sensor lokasi pada browser untuk memverifikasi radius sekolah.
+        Harap izinkan akses lokasi di browser untuk memverifikasi radius SMP Negeri 6 Singaraja.
       </p>
     </section>
 
@@ -86,7 +86,7 @@
       </div>
       <div>
         <h3 class="text-sm font-bold text-slate-900">Presensi Terverifikasi</h3>
-        <p class="text-[11px] text-slate-500 mt-1">Salin kode token di bawah ini lalu masukkan ke kolom <b>Kode Sesi</b> pada Google Form.</p>
+        <p class="text-[11px] text-slate-500 mt-1">Salin kode token di bawah ini lalu masukkan ke kolom <b>Masukkan Token</b> pada Google Form.</p>
       </div>
       
       <div class="bg-slate-50 border border-dashed border-slate-300 rounded-2xl p-3">
@@ -114,10 +114,10 @@
     const TARGET_LNG = 115.0914546;
     const MAX_RADIUS_METER = 150;
 
-    // Ganti tautan berikut dengan Link Publik Google Form Anda
-    const GOOGLE_FORM_URL = "https://forms.gle/aqX7S2RtxEeezNMB9";
+    // Link Publik Google Form Presensi
+    const GOOGLE_FORM_URL = "https://forms.gle/ETGNwEJTonEQ9C3z8";
 
-    // Kunci Rahasia Generator (SAMA PERSIS dengan di Apps Script)
+    // Kunci Rahasia Generator (Sinkron dengan Google Apps Script)
     const SECRET_SALT = "SMPN6_SINGARAJA_SECRET_KEY_2026";
 
     let generatedToken = "";
@@ -125,14 +125,13 @@
     // ==========================================
     // 2. GENERATOR TOKEN ACAK HARIAN (SHA-256)
     // ==========================================
-    async function generateDailyToken(dateStr, sessionName) {
-      const rawInput = `${dateStr}-${sessionName}-${SECRET_SALT}`;
+    async function generateDailyToken(dateStr, sessionKey) {
+      const rawInput = `${dateStr}-${sessionKey}-${SECRET_SALT}`;
       const msgUint8 = new TextEncoder().encode(rawInput);
       const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const hexString = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
       
-      // Ambil 6 karakter pertama sebagai token acak
       return hexString.substring(0, 6);
     }
 
@@ -142,7 +141,6 @@
     async function checkCurrentSession() {
       const now = new Date();
       
-      // Ambil tanggal & jam sesuai zona waktu WITA (UTC+8)
       const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
       const witaDate = new Date(utc + (3600000 * 8));
 
@@ -151,24 +149,56 @@
       const dd = String(witaDate.getDate()).padStart(2, '0');
       const dateStr = `${yyyy}-${mm}-${dd}`;
 
+      const dayOfWeek = witaDate.getDay(); // 0: Minggu, 1: Senin, 2: Selasa, ..., 5: Jumat, 6: Sabtu
       const currentMinute = witaDate.getHours() * 60 + witaDate.getMinutes();
 
-      // Sesi Pagi: 06:00 (360) - 07:00 (420) WITA
-      if (currentMinute >= 360 && currentMinute <= 420) {
-        const token = await generateDailyToken(dateStr, "PAGI");
-        return { valid: true, name: "Pagi (06:00 - 07:00 WITA)", token: token };
-      } 
-      // Sesi Siang: 11:00 (660) - 12:00 (720) WITA
-      else if (currentMinute >= 660 && currentMinute <= 720) {
-        const token = await generateDailyToken(dateStr, "SIANG");
-        return { valid: true, name: "Siang (11:00 - 12:00 WITA)", token: token };
+      // 1. HARI MINGGU (LIBUR)
+      if (dayOfWeek === 0) {
+        return { valid: false, name: "Hari Minggu - Libur Sekolah", token: null };
       }
 
-      return { valid: false, name: "Di Luar Jam Operasional", token: null };
+      // 2. HARI SABTU (PAGI: 06:00 - 07:00 & SIANG: 10:00 - 11:00 WITA)
+      if (dayOfWeek === 6) {
+        // Pagi Sabtu: 06:00 - 07:00 WITA (Menit 360 - 420)
+        if (currentMinute >= 360 && currentMinute <= 420) {
+          const token = await generateDailyToken(dateStr, "SABTU_PAGI");
+          return { valid: true, name: "Sabtu: Sesi Pagi (06:00 - 07:00 WITA)", token: token };
+        }
+        // Siang Sabtu: 10:00 - 11:00 WITA (Menit 600 - 660)
+        else if (currentMinute >= 600 && currentMinute <= 660) {
+          const token = await generateDailyToken(dateStr, "SABTU_SIANG");
+          return { valid: true, name: "Sabtu: Sesi Siang (10:00 - 11:00 WITA)", token: token };
+        }
+        return { valid: false, name: "Di Luar Jam Presensi Sabtu", token: null };
+      }
+
+      // 3. JADWAL HARI KERJA (SENIN - JUMAT)
+      // Sesi Pagi Reguler: 06:00 - 07:00 WITA (Menit 360 - 420)
+      if (currentMinute >= 360 && currentMinute <= 420) {
+        const token = await generateDailyToken(dateStr, "PAGI");
+        return { valid: true, name: "Pagi: Reguler (06:00 - 07:00 WITA)", token: token };
+      }
+
+      // Sesi Pagi Khusus PJKR: 08:30 - 09:30 WITA (Menit 510 - 570)
+      // Hanya aktif hari Selasa (2), Rabu (3), Kamis (4), dan Jumat (5)
+      if (dayOfWeek >= 2 && dayOfWeek <= 5) {
+        if (currentMinute >= 510 && currentMinute <= 570) {
+          const token = await generateDailyToken(dateStr, "PAGI_PJOK");
+          return { valid: true, name: "Pagi: PJKR / Lapangan (08:30 - 09:30 WITA)", token: token };
+        }
+      }
+
+      // Sesi Siang Reguler: 11:00 - 12:00 WITA (Menit 660 - 720)
+      if (currentMinute >= 660 && currentMinute <= 720) {
+        const token = await generateDailyToken(dateStr, "SIANG");
+        return { valid: true, name: "Siang: Reguler (11:00 - 12:00 WITA)", token: token };
+      }
+
+      return { valid: false, name: "Di Luar Jam Operasional Presensi", token: null };
     }
 
     // ==========================================
-    // 4. PERHITUNGAN RADIUS GPS (HAVERSINE)
+    // 4. PERHITUNGAN JARAK GPS (HAVERSINE)
     // ==========================================
     function calculateDistance(lat1, lon1, lat2, lon2) {
       const R = 6371e3;
@@ -191,18 +221,16 @@
       const distText = document.getElementById('distance-text');
       const btn = document.getElementById('btn-action');
 
-      // 1. Validasi sesi dan token dinamis dengan await
       const session = await checkCurrentSession();
       sessionText.innerText = session.name;
 
       if (!navigator.geolocation) {
-        setUIState("error", "GPS Tidak Didukung", "Browser ponsel ini tidak mendukung sensor lokasi.");
+        setUIState("danger", "GPS Tidak Didukung", "Browser ponsel ini tidak mendukung sensor lokasi.");
         return;
       }
 
       setUIState("loading", "Mendeteksi Posisi Anda...", "Mengunci koordinat GPS perangkat...");
 
-      // 2. Baca koordinat perangkat
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const userLat = pos.coords.latitude;
@@ -224,7 +252,7 @@
             setUIState("danger", "Di Luar Jangkauan Sekolah", `Posisi terdeteksi ${distance} meter dari sekolah. Anda harus berada dalam radius ${MAX_RADIUS_METER}m.`);
             lockButton("Presensi Terkunci (Radius)");
           } else if (!session.valid) {
-            setUIState("warning", "Sesi Tidak Aktif", "Presensi hanya dibuka pada sesi Pagi (06:00-07:00) dan Siang (11:00-12:00 WITA).");
+            setUIState("warning", "Sesi Tidak Aktif", "Presensi hanya dibuka pada jam operasional sesi Pagi, PJKR, atau Siang sesuai jadwal hari ini.");
             lockButton("Presensi Terkunci (Jadwal)");
           }
         },
@@ -287,7 +315,7 @@
 
     function copyAndProceed() {
       navigator.clipboard.writeText(generatedToken).then(() => {
-        alert("Kode Token Berhasil Disalin: " + generatedToken + "\nSilakan tempel di kolom Kode Sesi Google Form!");
+        alert("Kode Token Berhasil Disalin: " + generatedToken + "\nSilakan tempel di kolom Masukkan Token Google Form!");
         window.open(GOOGLE_FORM_URL, '_blank');
       }).catch(() => {
         window.open(GOOGLE_FORM_URL, '_blank');
