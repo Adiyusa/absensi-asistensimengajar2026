@@ -114,13 +114,11 @@
     const TARGET_LNG = 115.0914546;
     const MAX_RADIUS_METER = 150;
 
-    // Link Publik Google Form Presensi
-    const GOOGLE_FORM_URL = "https://forms.gle/ETGNwEJTonEQ9C3z8";
-
-    // Kunci Rahasia Generator (Sinkron dengan Google Apps Script)
+    const GOOGLE_FORM_URL = "https://forms.gle/EUBWyattLrmAeYcMA";
     const SECRET_SALT = "SMPN6_SINGARAJA_SECRET_KEY_2026";
 
     let generatedToken = "";
+    let currentStorageKey = "";
 
     // ==========================================
     // 2. GENERATOR TOKEN ACAK HARIAN (SHA-256)
@@ -149,52 +147,49 @@
       const dd = String(witaDate.getDate()).padStart(2, '0');
       const dateStr = `${yyyy}-${mm}-${dd}`;
 
-      const dayOfWeek = witaDate.getDay(); // 0: Minggu, 1: Senin, 2: Selasa, ..., 5: Jumat, 6: Sabtu
+      const dayOfWeek = witaDate.getDay(); // 0: Minggu, 1: Senin, ..., 6: Sabtu
       const currentMinute = witaDate.getHours() * 60 + witaDate.getMinutes();
 
       // 1. HARI MINGGU (LIBUR)
       if (dayOfWeek === 0) {
-        return { valid: false, name: "Hari Minggu - Libur Sekolah", token: null };
+        return { valid: false, name: "Hari Minggu - Libur Sekolah", token: null, key: null };
       }
 
       // 2. HARI SABTU (PAGI: 06:00 - 07:00 & SIANG: 10:00 - 11:00 WITA)
       if (dayOfWeek === 6) {
-        // Pagi Sabtu: 06:00 - 07:00 WITA (Menit 360 - 420)
         if (currentMinute >= 360 && currentMinute <= 420) {
           const token = await generateDailyToken(dateStr, "SABTU_PAGI");
-          return { valid: true, name: "Sabtu: Sesi Pagi (06:00 - 07:00 WITA)", token: token };
-        }
-        // Siang Sabtu: 10:00 - 11:00 WITA (Menit 600 - 660)
-        else if (currentMinute >= 600 && currentMinute <= 660) {
+          return { valid: true, name: "Sabtu: Sesi Pagi (06:00 - 07:00 WITA)", token: token, key: `${dateStr}_SABTU_PAGI` };
+        } else if (currentMinute >= 600 && currentMinute <= 660) {
           const token = await generateDailyToken(dateStr, "SABTU_SIANG");
-          return { valid: true, name: "Sabtu: Sesi Siang (10:00 - 11:00 WITA)", token: token };
+          return { valid: true, name: "Sabtu: Sesi Siang (10:00 - 11:00 WITA)", token: token, key: `${dateStr}_SABTU_SIANG` };
         }
-        return { valid: false, name: "Di Luar Jam Presensi Sabtu", token: null };
+        return { valid: false, name: "Di Luar Jam Presensi Sabtu", token: null, key: null };
       }
 
-      // 3. JADWAL HARI KERJA (SENIN - JUMAT)
+      // 3. JADWAL SENIN - JUMAT
       // Sesi Pagi Reguler: 06:00 - 07:00 WITA (Menit 360 - 420)
       if (currentMinute >= 360 && currentMinute <= 420) {
         const token = await generateDailyToken(dateStr, "PAGI");
-        return { valid: true, name: "Pagi: Reguler (06:00 - 07:00 WITA)", token: token };
+        return { valid: true, name: "Pagi: Reguler (06:00 - 07:00 WITA)", token: token, key: `${dateStr}_PAGI` };
       }
 
-      // Sesi Pagi Khusus PJKR: 08:30 - 09:30 WITA (Menit 510 - 570)
+      // Sesi Pagi PJKR / Lapangan: 08:30 - 09:30 WITA (Menit 510 - 570)
       // Hanya aktif hari Selasa (2), Rabu (3), Kamis (4), dan Jumat (5)
       if (dayOfWeek >= 2 && dayOfWeek <= 5) {
         if (currentMinute >= 510 && currentMinute <= 570) {
           const token = await generateDailyToken(dateStr, "PAGI_PJOK");
-          return { valid: true, name: "Pagi: PJKR / Lapangan (08:30 - 09:30 WITA)", token: token };
+          return { valid: true, name: "Pagi: PJKR / Lapangan (08:30 - 09:30 WITA)", token: token, key: `${dateStr}_PAGI_PJOK` };
         }
       }
 
       // Sesi Siang Reguler: 11:00 - 12:00 WITA (Menit 660 - 720)
       if (currentMinute >= 660 && currentMinute <= 720) {
         const token = await generateDailyToken(dateStr, "SIANG");
-        return { valid: true, name: "Siang: Reguler (11:00 - 12:00 WITA)", token: token };
+        return { valid: true, name: "Siang: Reguler (11:00 - 12:00 WITA)", token: token, key: `${dateStr}_SIANG` };
       }
 
-      return { valid: false, name: "Di Luar Jam Operasional Presensi", token: null };
+      return { valid: false, name: "Di Luar Jam Operasional Presensi", token: null, key: null };
     }
 
     // ==========================================
@@ -223,6 +218,17 @@
 
       const session = await checkCurrentSession();
       sessionText.innerText = session.name;
+
+      // Cek apakah perangkat sudah pernah presensi di sesi ini
+      if (session.valid && session.key) {
+        currentStorageKey = "am_presensi_" + session.key;
+        if (localStorage.getItem(currentStorageKey) === "done") {
+          distText.innerText = "Sesi Selesai";
+          setUIState("success", "Presensi Sudah Terkirim", "Perangkat ini sudah melakukan presensi pada sesi aktif saat ini.");
+          lockButton("Sudah Absen di Sesi Ini");
+          return;
+        }
+      }
 
       if (!navigator.geolocation) {
         setUIState("danger", "GPS Tidak Didukung", "Browser ponsel ini tidak mendukung sensor lokasi.");
@@ -257,11 +263,25 @@
           }
         },
         (err) => {
-          distText.innerText = "Akses Ditolak";
-          setUIState("danger", "Izin GPS Dinonaktifkan", "Harap aktifkan GPS ponsel dan berikan izin lokasi pada peramban.");
-          lockButton("GPS Tidak Aktif");
+          let pesanError = "Gagal mengambil koordinat lokasi perangkat.";
+          let judulError = "Kendala GPS";
+
+          if (err.code === err.PERMISSION_DENIED) {
+            judulError = "Izin GPS Ditolak";
+            pesanError = "Izin lokasi diblokir oleh browser. Ketuk ikon setelan/gembok di samping URL browser lalu ubah Izin Lokasi menjadi 'Izinkan'.";
+          } else if (err.code === err.POSITION_UNAVAILABLE) {
+            judulError = "Sinyal GPS Tidak Terdeteksi";
+            pesanError = "Sinyal GPS lemah atau tidak terbaca. Pastikan GPS ponsel aktif dan melangkah ke area terbuka.";
+          } else if (err.code === err.TIMEOUT) {
+            judulError = "Waktu Pencarian GPS Habis";
+            pesanError = "Koneksi satelit GPS membutuhkan waktu lebih lama. Silakan melangkah ke luar teras lalu klik 'Perbarui Koordinat GPS'.";
+          }
+
+          distText.innerText = "Gagal Mengukur";
+          setUIState("danger", judulError, pesanError);
+          lockButton("GPS Tidak Terdeteksi");
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
     }
 
@@ -314,11 +334,18 @@
     }
 
     function copyAndProceed() {
+      // Tandai perangkat ini sudah absen pada sesi aktif
+      if (currentStorageKey) {
+        localStorage.setItem(currentStorageKey, "done");
+      }
+
       navigator.clipboard.writeText(generatedToken).then(() => {
         alert("Kode Token Berhasil Disalin: " + generatedToken + "\nSilakan tempel di kolom Masukkan Token Google Form!");
         window.open(GOOGLE_FORM_URL, '_blank');
+        checkAttendanceAccess(); // Kunci tombol seketika setelah token disalin
       }).catch(() => {
         window.open(GOOGLE_FORM_URL, '_blank');
+        checkAttendanceAccess();
       });
     }
 
@@ -328,7 +355,6 @@
     window.addEventListener('DOMContentLoaded', () => {
       checkAttendanceAccess();
 
-      // Update jam digital WITA (UTC+8) secara real-time
       setInterval(() => {
         const d = new Date();
         const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
