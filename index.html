@@ -114,7 +114,7 @@
     const TARGET_LNG = 115.0914546;
     const MAX_RADIUS_METER = 150;
 
-    const GOOGLE_FORM_URL = "https://forms.gle/EUBWyattLrmAeYcMA";
+    const GOOGLE_FORM_URL = "https://forms.gle/hLdt8cGhsnnbmaUUA";
     const SECRET_SALT = "SMPN6_SINGARAJA_SECRET_KEY_2026";
 
     let generatedToken = "";
@@ -219,13 +219,24 @@
       const session = await checkCurrentSession();
       sessionText.innerText = session.name;
 
-      // Cek apakah perangkat sudah pernah presensi di sesi ini
-      if (session.valid && session.key) {
+      if (!session.valid) {
+        setUIState("warning", "Sesi Tidak Aktif", "Presensi hanya dibuka pada jam operasional sesi Pagi, PJKR, atau Siang sesuai jadwal hari ini.");
+        lockButton("Presensi Terkunci (Jadwal)");
+        return;
+      }
+
+      // Solusi: Jika token sudah pernah diambil, izinkan buka ulang form agar tidak terkunci saat gagal upload foto
+      if (session.key) {
         currentStorageKey = "am_presensi_" + session.key;
         if (localStorage.getItem(currentStorageKey) === "done") {
-          distText.innerText = "Sesi Selesai";
-          setUIState("success", "Presensi Sudah Terkirim", "Perangkat ini sudah melakukan presensi pada sesi aktif saat ini.");
-          lockButton("Sudah Absen di Sesi Ini");
+          generatedToken = session.token;
+          distText.innerText = "Sesi Aktif (Disalin)";
+          setUIState("success", "Token Sudah Pernah Diambil", "Perangkat ini sudah mengambil token pada sesi ini. Jika tadi proses unggah foto atau form terputus, klik tombol di bawah untuk membuka form kembali.");
+          
+          btn.disabled = false;
+          btn.innerText = "Buka Ulang Form & Token";
+          btn.className = "w-full py-3.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-2xl text-xs tracking-wide uppercase transition-all duration-200 shadow-md shadow-amber-200 cursor-pointer";
+          btn.onclick = openTokenModal;
           return;
         }
       }
@@ -245,7 +256,7 @@
 
           distText.innerText = `${distance} Meter`;
 
-          if (distance <= MAX_RADIUS_METER && session.valid) {
+          if (distance <= MAX_RADIUS_METER) {
             generatedToken = session.token;
             setUIState("success", "Lokasi & Waktu Terverifikasi", "Anda berada di zona sekolah pada sesi presensi aktif.");
             
@@ -254,12 +265,9 @@
             btn.className = "w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs tracking-wide uppercase transition-all duration-200 shadow-md shadow-blue-200 cursor-pointer";
             btn.onclick = openTokenModal;
 
-          } else if (distance > MAX_RADIUS_METER) {
+          } else {
             setUIState("danger", "Di Luar Jangkauan Sekolah", `Posisi terdeteksi ${distance} meter dari sekolah. Anda harus berada dalam radius ${MAX_RADIUS_METER}m.`);
             lockButton("Presensi Terkunci (Radius)");
-          } else if (!session.valid) {
-            setUIState("warning", "Sesi Tidak Aktif", "Presensi hanya dibuka pada jam operasional sesi Pagi, PJKR, atau Siang sesuai jadwal hari ini.");
-            lockButton("Presensi Terkunci (Jadwal)");
           }
         },
         (err) => {
@@ -268,10 +276,10 @@
 
           if (err.code === err.PERMISSION_DENIED) {
             judulError = "Izin GPS Ditolak";
-            pesanError = "Izin lokasi diblokir oleh browser. Ketuk ikon setelan/gembok di samping URL browser lalu ubah Izin Lokasi menjadi 'Izinkan'.";
+            pesanError = "Izin lokasi diblokir oleh browser. Ketuk ikon gembok/setelan di samping URL browser lalu ubah Izin Lokasi menjadi 'Izinkan'.";
           } else if (err.code === err.POSITION_UNAVAILABLE) {
             judulError = "Sinyal GPS Tidak Terdeteksi";
-            pesanError = "Sinyal GPS lemah atau tidak terbaca. Pastikan GPS ponsel aktif dan melangkah ke area terbuka.";
+            pesanError = "Sinyal GPS lemah atau tidak terbaca. Pastikan GPS aktif dan silakan melangkah ke area terbuka.";
           } else if (err.code === err.TIMEOUT) {
             judulError = "Waktu Pencarian GPS Habis";
             pesanError = "Koneksi satelit GPS membutuhkan waktu lebih lama. Silakan melangkah ke luar teras lalu klik 'Perbarui Koordinat GPS'.";
@@ -334,7 +342,6 @@
     }
 
     function copyAndProceed() {
-      // Tandai perangkat ini sudah absen pada sesi aktif
       if (currentStorageKey) {
         localStorage.setItem(currentStorageKey, "done");
       }
@@ -342,7 +349,7 @@
       navigator.clipboard.writeText(generatedToken).then(() => {
         alert("Kode Token Berhasil Disalin: " + generatedToken + "\nSilakan tempel di kolom Masukkan Token Google Form!");
         window.open(GOOGLE_FORM_URL, '_blank');
-        checkAttendanceAccess(); // Kunci tombol seketika setelah token disalin
+        checkAttendanceAccess();
       }).catch(() => {
         window.open(GOOGLE_FORM_URL, '_blank');
         checkAttendanceAccess();
