@@ -114,7 +114,7 @@
     const TARGET_LNG = 115.0914546;
     const MAX_RADIUS_METER = 150;
 
-    const GOOGLE_FORM_URL = "https://forms.gle/hLdt8cGhsnnbmaUUA";
+    const GOOGLE_FORM_URL = "https://forms.gle/aqX7S2RtxEeezNMB9";
     const SECRET_SALT = "SMPN6_SINGARAJA_SECRET_KEY_2026";
 
     let generatedToken = "";
@@ -150,46 +150,63 @@
       const dayOfWeek = witaDate.getDay(); // 0: Minggu, 1: Senin, ..., 6: Sabtu
       const currentMinute = witaDate.getHours() * 60 + witaDate.getMinutes();
 
-      // 1. HARI MINGGU (LIBUR)
+      // 1. HARI MINGGU (LIBUR SEKOLAH)
       if (dayOfWeek === 0) {
-        return { valid: false, name: "Hari Minggu - Libur Sekolah", token: null, key: null };
+        return { valid: false, name: "Hari Minggu - Libur Sekolah", token: null, key: null, isHut: false };
       }
 
-      // 2. HARI SABTU (PAGI: 06:00 - 07:00 & SIANG: 10:00 - 11:00 WITA)
+      // ==========================================
+      // KHUSUS PERIODE HUT KE-32 (28 SEP - 5 OKT 2026)
+      // ==========================================
+      const isPeriodeHUT = (dateStr >= "2026-09-28" && dateStr <= "2026-10-05");
+      if (isPeriodeHUT) {
+        // Presensi Awal: 06:00 - 07:00 WITA (Menit 360 - 420)
+        if (currentMinute >= 360 && currentMinute <= 420) {
+          const token = await generateDailyToken(dateStr, "HUT_DATANG");
+          return { valid: true, name: "HUT: Absen Awal (06:00 - 07:00 WITA)", token: token, key: `${dateStr}_HUT_DATANG`, isHut: true };
+        }
+        // Presensi Akhir: 12:00 - 13:00 WITA (Menit 720 - 780)
+        else if (currentMinute >= 720 && currentMinute <= 780) {
+          const token = await generateDailyToken(dateStr, "HUT_PULANG");
+          return { valid: true, name: "HUT: Absen Akhir (12:00 - 13:00 WITA)", token: token, key: `${dateStr}_HUT_PULANG`, isHut: true };
+        }
+        return { valid: false, name: "Di Luar Jam Presensi HUT", token: null, key: null, isHut: true };
+      }
+
+      // ==========================================
+      // JADWAL REGULER (SETELAH PERIODE HUT BERAKHIR)
+      // ==========================================
+      // Hari Sabtu Reguler
       if (dayOfWeek === 6) {
         if (currentMinute >= 360 && currentMinute <= 420) {
           const token = await generateDailyToken(dateStr, "SABTU_PAGI");
-          return { valid: true, name: "Sabtu: Sesi Pagi (06:00 - 07:00 WITA)", token: token, key: `${dateStr}_SABTU_PAGI` };
+          return { valid: true, name: "Sabtu: Sesi Pagi (06:00 - 07:00 WITA)", token: token, key: `${dateStr}_SABTU_PAGI`, isHut: false };
         } else if (currentMinute >= 600 && currentMinute <= 660) {
           const token = await generateDailyToken(dateStr, "SABTU_SIANG");
-          return { valid: true, name: "Sabtu: Sesi Siang (10:00 - 11:00 WITA)", token: token, key: `${dateStr}_SABTU_SIANG` };
+          return { valid: true, name: "Sabtu: Sesi Siang (10:00 - 11:00 WITA)", token: token, key: `${dateStr}_SABTU_SIANG`, isHut: false };
         }
-        return { valid: false, name: "Di Luar Jam Presensi Sabtu", token: null, key: null };
+        return { valid: false, name: "Di Luar Jam Presensi Sabtu", token: null, key: null, isHut: false };
       }
 
-      // 3. JADWAL SENIN - JUMAT
-      // Sesi Pagi Reguler: 06:00 - 07:00 WITA (Menit 360 - 420)
+      // Senin - Jumat Reguler
       if (currentMinute >= 360 && currentMinute <= 420) {
         const token = await generateDailyToken(dateStr, "PAGI");
-        return { valid: true, name: "Pagi: Reguler (06:00 - 07:00 WITA)", token: token, key: `${dateStr}_PAGI` };
+        return { valid: true, name: "Pagi: Reguler (06:00 - 07:00 WITA)", token: token, key: `${dateStr}_PAGI`, isHut: false };
       }
 
-      // Sesi Pagi PJKR / Lapangan: 08:30 - 09:30 WITA (Menit 510 - 570)
-      // Hanya aktif hari Selasa (2), Rabu (3), Kamis (4), dan Jumat (5)
       if (dayOfWeek >= 2 && dayOfWeek <= 5) {
         if (currentMinute >= 510 && currentMinute <= 570) {
           const token = await generateDailyToken(dateStr, "PAGI_PJOK");
-          return { valid: true, name: "Pagi: PJKR / Lapangan (08:30 - 09:30 WITA)", token: token, key: `${dateStr}_PAGI_PJOK` };
+          return { valid: true, name: "Pagi: PJKR / Lapangan (08:30 - 09:30 WITA)", token: token, key: `${dateStr}_PAGI_PJOK`, isHut: false };
         }
       }
 
-      // Sesi Siang Reguler: 11:00 - 12:00 WITA (Menit 660 - 720)
       if (currentMinute >= 660 && currentMinute <= 720) {
         const token = await generateDailyToken(dateStr, "SIANG");
-        return { valid: true, name: "Siang: Reguler (11:00 - 12:00 WITA)", token: token, key: `${dateStr}_SIANG` };
+        return { valid: true, name: "Siang: Reguler (11:00 - 12:00 WITA)", token: token, key: `${dateStr}_SIANG`, isHut: false };
       }
 
-      return { valid: false, name: "Di Luar Jam Operasional Presensi", token: null, key: null };
+      return { valid: false, name: "Di Luar Jam Operasional Presensi", token: null, key: null, isHut: false };
     }
 
     // ==========================================
@@ -220,18 +237,22 @@
       sessionText.innerText = session.name;
 
       if (!session.valid) {
-        setUIState("warning", "Sesi Tidak Aktif", "Presensi hanya dibuka pada jam operasional sesi Pagi, PJKR, atau Siang sesuai jadwal hari ini.");
+        let warningText = session.isHut 
+          ? "Presensi HUT dibuka khusus Absen Awal (06:00 - 07:00 WITA) dan Absen Akhir (12:00 - 13:00 WITA)."
+          : "Presensi hanya dibuka pada jam operasional sesi Pagi, PJKR, atau Siang sesuai jadwal hari ini.";
+          
+        setUIState("warning", "Sesi Tidak Aktif", warningText);
         lockButton("Presensi Terkunci (Jadwal)");
         return;
       }
 
-      // Solusi: Jika token sudah pernah diambil, izinkan buka ulang form agar tidak terkunci saat gagal upload foto
+      // Dukungan buka ulang token jika form sempat terputus/refresh
       if (session.key) {
         currentStorageKey = "am_presensi_" + session.key;
         if (localStorage.getItem(currentStorageKey) === "done") {
           generatedToken = session.token;
           distText.innerText = "Sesi Aktif (Disalin)";
-          setUIState("success", "Token Sudah Pernah Diambil", "Perangkat ini sudah mengambil token pada sesi ini. Jika tadi proses unggah foto atau form terputus, klik tombol di bawah untuk membuka form kembali.");
+          setUIState("success", "Token Sudah Pernah Diambil", "Perangkat ini sudah mengambil token pada sesi ini. Jika tadi proses pengisian formulir terputus atau gagal unggah, klik tombol di bawah untuk membuka form kembali.");
           
           btn.disabled = false;
           btn.innerText = "Buka Ulang Form & Token";
