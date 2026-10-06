@@ -114,7 +114,7 @@
     const TARGET_LNG = 115.0914546;
     const MAX_RADIUS_METER = 150;
 
-    const GOOGLE_FORM_URL = "https://forms.gle/aqX7S2RtxEeezNMB9";
+    const GOOGLE_FORM_URL = "https://forms.gle/nwCPJmN1EyvErioB9";
     const SECRET_SALT = "SMPN6_SINGARAJA_SECRET_KEY_2026";
 
     let generatedToken = "";
@@ -134,7 +134,7 @@
     }
 
     // ==========================================
-    // 3. VALIDASI JADWAL SESI (WITA / UTC+8)
+    // 3. VALIDASI JADWAL SESI REGULER (WITA / UTC+8)
     // ==========================================
     async function checkCurrentSession() {
       const now = new Date();
@@ -152,71 +152,44 @@
 
       // 1. HARI MINGGU (LIBUR SEKOLAH)
       if (dayOfWeek === 0) {
-        return { valid: false, name: "Hari Minggu - Libur Sekolah", token: null, key: null, isHut: false, isJalanSantai: false };
+        return { valid: false, name: "Hari Minggu - Libur Sekolah", token: null, key: null };
       }
 
-      // ==========================================
-      // KHUSUS PERIODE HUT KE-32 (28 SEP - 5 OKT 2026)
-      // ==========================================
-      const isPeriodeHUT = (dateStr >= "2026-09-28" && dateStr <= "2026-10-05");
-      if (isPeriodeHUT) {
-        // Pengecekan Khusus Hari Sabtu, 3 Oktober 2026 (Jalan Santai)
-        const isJalanSantai = (dateStr === "2026-10-03");
-
-        // Jam Datang: 05:00 - 06:00 (Jalan Santai) vs 06:00 - 07:00 (HUT Reguler)
-        const startAwal = isJalanSantai ? 300 : 360; // Menit 300 (05:00) vs 360 (06:00)
-        const endAwal = isJalanSantai ? 360 : 420;   // Menit 360 (06:00) vs 420 (07:00)
-        const labelAwal = isJalanSantai 
-          ? "HUT: Absen Awal - Jalan Santai (05:00 - 06:00 WITA)"
-          : "HUT: Absen Awal (06:00 - 07:00 WITA)";
-
-        // Presensi Awal
-        if (currentMinute >= startAwal && currentMinute <= endAwal) {
-          const token = await generateDailyToken(dateStr, "HUT_DATANG");
-          return { valid: true, name: labelAwal, token: token, key: `${dateStr}_HUT_DATANG`, isHut: true, isJalanSantai: isJalanSantai };
-        }
-        // Presensi Akhir: 12:00 - 13:00 WITA (Menit 720 - 780)
-        else if (currentMinute >= 720 && currentMinute <= 780) {
-          const token = await generateDailyToken(dateStr, "HUT_PULANG");
-          return { valid: true, name: "HUT: Absen Akhir (12:00 - 13:00 WITA)", token: token, key: `${dateStr}_HUT_PULANG`, isHut: true, isJalanSantai: isJalanSantai };
-        }
-        return { valid: false, name: "Di Luar Jam Presensi HUT", token: null, key: null, isHut: true, isJalanSantai: isJalanSantai };
-      }
-
-      // ==========================================
-      // JADWAL REGULER (SETELAH PERIODE HUT SELESAI)
-      // ==========================================
-      // Hari Sabtu Reguler
+      // 2. HARI SABTU (PAGI: 06:00 - 07:00 & SIANG: 10:00 - 11:00 WITA)
       if (dayOfWeek === 6) {
         if (currentMinute >= 360 && currentMinute <= 420) {
           const token = await generateDailyToken(dateStr, "SABTU_PAGI");
-          return { valid: true, name: "Sabtu: Sesi Pagi (06:00 - 07:00 WITA)", token: token, key: `${dateStr}_SABTU_PAGI`, isHut: false, isJalanSantai: false };
+          return { valid: true, name: "Sabtu: Sesi Pagi (06:00 - 07:00 WITA)", token: token, key: `${dateStr}_SABTU_PAGI` };
         } else if (currentMinute >= 600 && currentMinute <= 660) {
           const token = await generateDailyToken(dateStr, "SABTU_SIANG");
-          return { valid: true, name: "Sabtu: Sesi Siang (10:00 - 11:00 WITA)", token: token, key: `${dateStr}_SABTU_SIANG`, isHut: false, isJalanSantai: false };
+          return { valid: true, name: "Sabtu: Sesi Siang (10:00 - 11:00 WITA)", token: token, key: `${dateStr}_SABTU_SIANG` };
         }
-        return { valid: false, name: "Di Luar Jam Presensi Sabtu", token: null, key: null, isHut: false, isJalanSantai: false };
+        return { valid: false, name: "Di Luar Jam Presensi Sabtu", token: null, key: null };
       }
 
-      // Senin - Jumat Reguler
+      // 3. JADWAL SENIN - JUMAT REGULER
+      // Sesi Pagi Reguler: 06:00 - 07:00 WITA (Menit 360 - 420)
       if (currentMinute >= 360 && currentMinute <= 420) {
         const token = await generateDailyToken(dateStr, "PAGI");
-        return { valid: true, name: "Pagi: Reguler (06:00 - 07:00 WITA)", token: token, key: `${dateStr}_PAGI`, isHut: false, isJalanSantai: false };
+        return { valid: true, name: "Pagi: Reguler (06:00 - 07:00 WITA)", token: token, key: `${dateStr}_PAGI` };
       }
 
+      // Sesi Pagi PJKR / Lapangan: 08:30 - 09:30 WITA (Menit 510 - 570)
+      // Hanya aktif hari Selasa (2), Rabu (3), Kamis (4), dan Jumat (5)
       if (dayOfWeek >= 2 && dayOfWeek <= 5) {
         if (currentMinute >= 510 && currentMinute <= 570) {
           const token = await generateDailyToken(dateStr, "PAGI_PJOK");
-          return { valid: true, name: "Pagi: PJKR / Lapangan (08:30 - 09:30 WITA)", token: token, key: `${dateStr}_PAGI_PJOK`, isHut: false, isJalanSantai: false };
+          return { valid: true, name: "Pagi: PJKR / Lapangan (08:30 - 09:30 WITA)", token: token, key: `${dateStr}_PAGI_PJOK` };
         }
       }
 
+      // Sesi Siang Reguler: 11:00 - 12:00 WITA (Menit 660 - 720)
       if (currentMinute >= 660 && currentMinute <= 720) {
         const token = await generateDailyToken(dateStr, "SIANG");
-        return { valid: true, name: "Siang: Reguler (11:00 - 12:00 WITA)", token: token, key: `${dateStr}_SIANG`, isHut: false, isJalanSantai: false };
+        return { valid: true, name: "Siang: Reguler (11:00 - 12:00 WITA)", token: token, key: `${dateStr}_SIANG` };
       }
 
-      return { valid: false, name: "Di Luar Jam Operasional Presensi", token: null, key: null, isHut: false, isJalanSantai: false };
+      return { valid: false, name: "Di Luar Jam Operasional Presensi", token: null, key: null };
     }
 
     // ==========================================
@@ -247,18 +220,7 @@
       sessionText.innerText = session.name;
 
       if (!session.valid) {
-        let warningText = "";
-        if (session.isHut) {
-          if (session.isJalanSantai) {
-            warningText = "Presensi Jalan Santai HUT dibuka khusus Absen Awal (05:00 - 06:00 WITA) dan Absen Akhir (12:00 - 13:00 WITA).";
-          } else {
-            warningText = "Presensi HUT dibuka khusus Absen Awal (06:00 - 07:00 WITA) dan Absen Akhir (12:00 - 13:00 WITA).";
-          }
-        } else {
-          warningText = "Presensi hanya dibuka pada jam operasional sesi Pagi, PJKR, atau Siang sesuai jadwal hari ini.";
-        }
-          
-        setUIState("warning", "Sesi Tidak Aktif", warningText);
+        setUIState("warning", "Sesi Tidak Aktif", "Presensi hanya dibuka pada jam operasional sesi Pagi, PJKR, atau Siang sesuai jadwal hari ini.");
         lockButton("Presensi Terkunci (Jadwal)");
         return;
       }
